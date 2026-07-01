@@ -21,6 +21,11 @@ tauri = { version = "2", features = [] }
 # crate that runs the tauri_build build script, via Cargo's `links` DEP_ env — a transitive dep
 # through unstation-app is NOT enough.
 tauri-plugin-opener = "2"
+# Same direct-dep rule for the deep-link plugin (registered in the shared unstation-app
+# builder): needed here so tauri_build discovers its ACL permissions (deep-link:*).
+# Inbound unstation://watch/<name> invite links arrive via the VIEW intent-filter in
+# gen/android/.../AndroidManifest.xml and reach JS through window.__TAURI__.deepLink.
+tauri-plugin-deep-link = "2"
 # Shared command/event layer (the ~800-line handler set), reused verbatim from the desktop
 # repo. `publish` is ON (M4): the Android start_publish uses a camera source (Camera2 +
 # MediaCodec → FragmentBuilder), NOT ffmpeg — segmenter is linked only for its FragmentBuilder.

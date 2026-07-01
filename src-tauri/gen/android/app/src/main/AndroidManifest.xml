@@ -43,6 +43,15 @@
                 <!-- AndroidTV support -->
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
+            <!-- Invite deep-links: unstation://watch/<name>. Delivered to the webview by
+                 tauri-plugin-deep-link (registered in the shared unstation-app builder) —
+                 the frontend subscribes via window.__TAURI__.deepLink.onOpenUrl. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="unstation" />
+            </intent-filter>
         </activity>
 
         <service
