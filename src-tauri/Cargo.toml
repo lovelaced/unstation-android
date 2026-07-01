@@ -16,6 +16,11 @@ tauri-build = { version = "2", features = [] }
 # `tauri` here has NO macos-private-api (that's desktop-only). generate_context! +
 # mobile_entry_point come from here.
 tauri = { version = "2", features = [] }
+# Direct dep (also in unstation-app, which calls its init()) so tauri_build here discovers the
+# opener plugin's ACL permissions (opener:*). Plugin permission files propagate only to the app
+# crate that runs the tauri_build build script, via Cargo's `links` DEP_ env — a transitive dep
+# through unstation-app is NOT enough.
+tauri-plugin-opener = "2"
 # Shared command/event layer (the ~800-line handler set), reused verbatim from the desktop
 # repo. Watch-only for now: the `publish` feature is OFF, so no ffmpeg/segmenter is linked.
 # M4 enables `publish` and supplies a camera-based source.

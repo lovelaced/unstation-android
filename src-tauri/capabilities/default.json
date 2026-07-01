@@ -5,6 +5,13 @@
   "permissions": [
     "core:default",
     "core:event:default",
-    "core:app:default"
+    "core:app:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "polkadotapp://*" },
+        { "url": "polkadot://*" }
+      ]
+    }
   ]
 }

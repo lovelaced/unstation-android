@@ -5,6 +5,15 @@
     <!-- AndroidTV support -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
 
+    <!-- Package visibility (Android 11+): allow resolving/launching the Polkadot app's
+         polkadotapp:// pairing deep-link — otherwise AppsFilter blocks the intent. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="polkadotapp" />
+        </intent>
+    </queries>
+
     <application
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"

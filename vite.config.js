@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import fs from "node:fs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 // SINGLE-SOURCE THE FRONTEND: the Vite root IS the desktop app's src/ tree, so
@@ -25,8 +26,24 @@ const fixWasmDataUrl = {
   },
 };
 
+// Inject the Android-only shim (ui/android-shims.js) before the shared main.js WITHOUT
+// editing the shared index.html/main.js. Served as a virtual module so the shim's own
+// imports (e.g. hls.js at M3) resolve + bundle normally from this repo's node_modules.
+const shimPath = resolve(here, "ui/android-shims.js");
+const androidShims = {
+  name: "unstation-android-shims",
+  transformIndexHtml() {
+    // INLINE the shim as a module (no src). An injected `<script src="virtual:...">` is NOT
+    // picked up as a build entry by Vite, so it never bundles — inlining runs reliably in both
+    // dev and build. The shim has no npm imports (uses window.__TAURI__), so inlining suffices.
+    return [
+      { tag: "script", attrs: { type: "module" }, children: fs.readFileSync(shimPath, "utf8"), injectTo: "head-prepend" },
+    ];
+  },
+};
+
 export default defineConfig({
-  plugins: [fixWasmDataUrl],
+  plugins: [fixWasmDataUrl, androidShims],
   root: desktopSrc,
   base: "./",
   build: {
