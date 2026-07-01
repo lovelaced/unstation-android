@@ -48,6 +48,10 @@ object CameraBridge {
             if (end > payloadStart && end < csd.size && csd[end - 1].toInt() == 0) end--
             if (payloadStart >= end) continue
             val nal = csd.copyOfRange(payloadStart, end)
+            // `nal` is guaranteed non-empty by the guard above; the isNotEmpty check
+            // makes that invariant explicit so a future edit can't reintroduce an
+            // IndexOutOfBounds on a malformed CSD.
+            if (nal.isEmpty()) continue
             when (nal[0].toInt() and 0x1f) {
                 7 -> sps = nal
                 8 -> pps = nal

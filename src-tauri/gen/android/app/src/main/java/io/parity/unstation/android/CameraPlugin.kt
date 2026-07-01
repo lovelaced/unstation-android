@@ -94,20 +94,40 @@ class CameraPlugin(private val activity: Activity) : Plugin(activity) {
         bgThread = HandlerThread("unstation-cam").apply { start() }
         bgHandler = Handler(bgThread!!.looper)
 
-        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, W, H).apply {
-            setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-            setInteger(MediaFormat.KEY_BIT_RATE, BITRATE)
-            setInteger(MediaFormat.KEY_FRAME_RATE, FPS)
-            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1) // ~1s GOP → one CMAF fragment per GOP
-            setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh)
-            // Low-latency, no B-frames (matches the Rust muxer's composition-offset=0 assumption).
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) setInteger(MediaFormat.KEY_LATENCY, 1)
+        // Try H.264 profiles from best to most-compatible. Many low-end / older devices
+        // reject High-profile configure() outright — without a fallback that killed
+        // publish entirely on those phones. Baseline is universally supported.
+        val profiles = intArrayOf(
+            MediaCodecInfo.CodecProfileLevel.AVCProfileHigh,
+            MediaCodecInfo.CodecProfileLevel.AVCProfileMain,
+            MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline,
+        )
+        var enc: MediaCodec? = null
+        var lastErr: Throwable? = null
+        for ((i, profile) in profiles.withIndex()) {
+            val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, W, H).apply {
+                setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+                setInteger(MediaFormat.KEY_BIT_RATE, BITRATE)
+                setInteger(MediaFormat.KEY_FRAME_RATE, FPS)
+                setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1) // ~1s GOP → one CMAF fragment per GOP
+                setInteger(MediaFormat.KEY_PROFILE, profile)
+                // Low-latency, no B-frames (matches the Rust muxer's composition-offset=0 assumption).
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) setInteger(MediaFormat.KEY_LATENCY, 1)
+            }
+            try {
+                val c = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+                c.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                inputSurface = c.createInputSurface()
+                c.start()
+                enc = c
+                if (i > 0) Log.w(TAG, "H.264 profile $profile after ${i} fallback(s)")
+                break
+            } catch (e: Throwable) {
+                lastErr = e
+                Log.w(TAG, "encoder configure failed for profile $profile: ${e.message}")
+            }
         }
-        val enc = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
-        enc.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        inputSurface = enc.createInputSurface()
-        enc.start()
-        encoder = enc
+        encoder = enc ?: throw (lastErr ?: IllegalStateException("no usable H.264 encoder"))
 
         startDrain()
         openCamera()
@@ -156,7 +176,7 @@ class CameraPlugin(private val activity: Activity) : Plugin(activity) {
         val backId = ids.firstOrNull {
             cm.getCameraCharacteristics(it).get(CameraCharacteristics.LENS_FACING) ==
                 CameraCharacteristics.LENS_FACING_BACK
-        } ?: ids.firstOrNull() ?: throw IllegalStateException("no camera")
+        } ?: ids.firstOrNull() ?: throw IllegalStateException("This device has no usable camera.")
 
         cm.openCamera(backId, object : CameraDevice.StateCallback() {
             override fun onOpened(device: CameraDevice) {
