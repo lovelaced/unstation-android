@@ -1,0 +1,10 @@
+{
+  "identifier": "default",
+  "description": "Core capabilities for the Android webview: invoke commands + listen for mesh-stats/status events.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:app:default"
+  ]
+}

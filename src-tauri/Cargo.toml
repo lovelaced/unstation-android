@@ -1,0 +1,43 @@
+[package]
+name = "unstation-android"
+version = "0.0.0"
+edition = "2021"
+license = "AGPL-3.0-or-later"
+description = "Unstation — decentralized P2P live streaming (Android)."
+
+[lib]
+name = "unstation_android_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# `tauri` here has NO macos-private-api (that's desktop-only). generate_context! +
+# mobile_entry_point come from here.
+tauri = { version = "2", features = [] }
+# Shared command/event layer (the ~800-line handler set), reused verbatim from the desktop
+# repo. Watch-only for now: the `publish` feature is OFF, so no ffmpeg/segmenter is linked.
+# M4 enables `publish` and supplies a camera-based source.
+unstation-app = { path = "../../unstation-desktop/crates/unstation-app" }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+# testnet-provisioning (transitively via unstation-app → useragent-chain) embeds Alice's
+# dev key; the SDK forbids optimized release builds unless debug-assertions stays on. Keep
+# it for LAN test APKs. BEFORE PUBLIC RELEASE: drop this AND the testnet-provisioning
+# feature, then provision the allowance through real phone personhood.
+# Strip DWARF debug info from BOTH profiles: statically linking the chain SDK +
+# libdatachannel + OpenSSL yields a ~457 MB unstripped debug .so that won't fit the
+# emulator. Stripping debuginfo (keeps debug-assertions — a compile flag, unaffected)
+# cuts it to a fraction. `symbols` would be smaller still but keeps crash traces poorer.
+[profile.dev]
+strip = "debuginfo"
+
+[profile.release]
+debug-assertions = true
+opt-level = 3
+lto = "thin"
+strip = "debuginfo"

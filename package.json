@@ -1,0 +1,26 @@
+{
+  "name": "unstation-android-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "comment": "Runtime deps mirror ../unstation-desktop/desktop/package.json (the shared main.js/sso.js import them) so they resolve from this repo's node_modules too. hls.js is Android-only (Chromium WebView has no native HLS).",
+  "dependencies": {
+    "@noble/ciphers": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
+    "@novasamatech/host-papp": "0.8.10",
+    "@novasamatech/statement-store": "0.8.10",
+    "@polkadot-api/ws-provider": "0.9.0",
+    "qrcode": "^1.5.4",
+    "hls.js": "^1.5.17"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "vite": "^5.4.20"
+  }
+}
