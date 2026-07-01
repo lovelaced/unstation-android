@@ -61,3 +61,47 @@
 
   console.log("[android] shims loaded (pairing deep-link active)");
 })();
+
+// ── M3: HLS playback ─────────────────────────────────────────────────────────────────────
+// Android's Chromium WebView has no native HLS, so main.js's canPlayType('application/
+// vnd.apple.mpegurl') gate fails. main.js delegates to window.__hlsPlay(v, url, catchup) (a
+// platform-neutral seam) BEFORE that gate; here we feed the stream through hls.js (MSE).
+(function () {
+  "use strict";
+  var Hls = window.Hls;
+  console.log("[android] hls.js", Hls && Hls.version ? Hls.version : "MISSING");
+  var current = null;
+  window.__hlsPlay = function (v, url, catchup) {
+    if (!Hls || !Hls.isSupported()) {
+      console.warn("[android] hls.js unsupported; cannot play HLS");
+      if (catchup) { catchup.textContent = "This device can't play the stream format."; catchup.style.display = "grid"; }
+      return;
+    }
+    try {
+      if (current) { current.destroy(); current = null; }
+      // Low-latency live tuning to sit near the edge of the ~1-2s CMAF fragments.
+      current = new Hls({
+        lowLatencyMode: true,
+        liveSyncDurationCount: 2,
+        backBufferLength: 8,
+        manifestLoadingMaxRetry: 10,
+        levelLoadingMaxRetry: 10,
+        fragLoadingMaxRetry: 10,
+      });
+      current.on(Hls.Events.MANIFEST_PARSED, function () { v.play().catch(function () {}); });
+      current.on(Hls.Events.ERROR, function (_e, data) {
+        if (!data || !data.fatal) return;
+        console.warn("[android] hls fatal:", data.type, data.details);
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) current.startLoad();
+        else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) current.recoverMediaError();
+      });
+      current.loadSource(url);
+      current.attachMedia(v);
+      v.style.display = "block";
+      v.addEventListener("playing", function () { if (catchup) catchup.style.display = "none"; });
+      console.log("[android] hls.js attached:", url);
+    } catch (e) {
+      console.error("[android] hls attach failed", e);
+    }
+  };
+})();

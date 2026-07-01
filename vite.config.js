@@ -30,13 +30,19 @@ const fixWasmDataUrl = {
 // editing the shared index.html/main.js. Served as a virtual module so the shim's own
 // imports (e.g. hls.js at M3) resolve + bundle normally from this repo's node_modules.
 const shimPath = resolve(here, "ui/android-shims.js");
+const cssPath = resolve(here, "ui/android.css");
+const hlsPath = resolve(here, "node_modules/hls.js/dist/hls.min.js");
 const androidShims = {
   name: "unstation-android-shims",
   transformIndexHtml() {
-    // INLINE the shim as a module (no src). An injected `<script src="virtual:...">` is NOT
-    // picked up as a build entry by Vite, so it never bundles — inlining runs reliably in both
-    // dev and build. The shim has no npm imports (uses window.__TAURI__), so inlining suffices.
+    // Everything is injected INLINE: an injected `<script src="virtual:...">` / asset ref is
+    // NOT reliably picked up as a build entry by Vite, so it never loads. Inlining runs in both
+    // dev and build. hls.js is a CLASSIC script (sets window.Hls, executes during parse — before
+    // the deferred module scripts incl. the shim + main.js). The shim is a module that uses
+    // window.Hls + window.__TAURI__ (no npm imports, so inlining suffices).
     return [
+      { tag: "script", children: fs.readFileSync(hlsPath, "utf8"), injectTo: "head-prepend" },
+      { tag: "style", children: fs.readFileSync(cssPath, "utf8"), injectTo: "head" },
       { tag: "script", attrs: { type: "module" }, children: fs.readFileSync(shimPath, "utf8"), injectTo: "head-prepend" },
     ];
   },

@@ -1,0 +1,7 @@
+/* Android-only style overrides, injected as an inline <style> by vite.config.js on top of the
+   shared desktop styles (so the shared styles/ tree stays single-sourced). */
+
+/* The custom desktop titlebar is window chrome — meaningless on Android. Hide it. */
+body.plat-android .titlebar {
+  display: none !important;
+}
