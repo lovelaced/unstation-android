@@ -1,0 +1,47 @@
+name: CI
+
+# Tier-1 checks for the Android shell. The frontend job is the important one: this
+# repo single-sources the desktop app's frontend (vite root = ../unstation-desktop/
+# desktop/src) and injects ui/ shims over it, so the most common breakage is drift
+# between the shared tree and the shims — exactly what a vite build catches. The
+# full APK build (Rust cross-compile + NDK + the private chain SDK) stays manual/
+# on-demand until an SDK-configured runner is set up (see unstation-desktop's ci.yml
+# SDK_REPO pattern).
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: frontend (shim injection over the shared tree)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: unstation-android
+      # The shared frontend lives in the sibling repo — same layout the dev setup uses.
+      - name: Check out unstation-desktop as the expected sibling
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.DESKTOP_REPO || format('{0}/unstation-desktop', github.repository_owner) }}
+          ref: ${{ vars.DESKTOP_REF || 'master' }}
+          token: ${{ secrets.DESKTOP_TOKEN || github.token }}
+          path: unstation-desktop
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install deps
+        working-directory: unstation-android
+        run: pnpm install
+      - name: Vite build (injects ui/ shims over the shared desktop tree)
+        working-directory: unstation-android
+        run: pnpm exec vite build
