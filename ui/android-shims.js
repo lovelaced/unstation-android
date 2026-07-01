@@ -102,6 +102,11 @@ window.__unstationPlatformType = "mobile";
       current = new Hls({
         lowLatencyMode: true,
         liveSyncDurationCount: 2,
+        // Hold the live edge: if playback drifts more than this many segments behind (or a
+        // stall pushes it back), hls.js seeks forward to liveSyncDurationCount instead of
+        // playing 1x forever from wherever it landed. Without it the player falls steadily
+        // behind a live source.
+        liveMaxLatencyDurationCount: 6,
         backBufferLength: 8,
         manifestLoadingMaxRetry: 10,
         levelLoadingMaxRetry: 10,
