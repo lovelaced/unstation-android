@@ -178,4 +178,21 @@ window.__onPublishStopped = function () {
       console.error("[android] hls attach failed", e);
     }
   };
+
+  // D2 player-control seams (used guardedly by desktop/src/player.js): live-edge lag in
+  // seconds, and a seek-to-live that respects hls.js's own live-sync target. `current` is
+  // whichever Hls instance attached last (the watch player in practice — the self-preview
+  // only runs while publishing).
+  window.__hlsLatency = function () {
+    return current && isFinite(current.latency) ? current.latency : null;
+  };
+  window.__hlsSkipToLive = function () {
+    try {
+      if (current && current.media && isFinite(current.liveSyncPosition)) {
+        current.media.currentTime = current.liveSyncPosition;
+      }
+    } catch (e) {
+      console.warn("[android] skip-to-live failed", e);
+    }
+  };
 })();

@@ -80,6 +80,20 @@ body.plat-android #pairedBtn {
   display: none !important;
 }
 
+/* --- Player chips (unmute pill + skip-to-live): comfortable ≥44px touch targets --- */
+body.plat-android #soundPill,
+body.plat-android #skipLiveBtn,
+body.plat-android #muteBtn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 12px 18px;
+  font-size: 14px;
+}
+body.plat-android #soundPill[hidden],
+body.plat-android #skipLiveBtn[hidden] {
+  display: none;
+}
+
 /* --- Publish (go-live) scene: fit the stage, keep "End stream" reachable ---
    The desktop publish-live layout is a two-column stage|rail sized for a tall window;
    the rail pushes "End stream" to the bottom of a long sidebar. On a phone that sidebar
