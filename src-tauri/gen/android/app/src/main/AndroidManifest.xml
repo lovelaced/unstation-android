@@ -6,6 +6,14 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- A live broadcast survives backgrounding via PublishForegroundService (typed
+         `camera` — API 34 requires the matching typed permission). POST_NOTIFICATIONS
+         (13+) shows its persistent "You're live" notification; the service still runs
+         if the user declines it. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- AndroidTV support -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
 
@@ -36,6 +44,11 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".PublishForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="camera" />
 
         <provider
           android:name="androidx.core.content.FileProvider"

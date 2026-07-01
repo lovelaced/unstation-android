@@ -27,3 +27,11 @@ pnpm tauri android build --debug --target aarch64
 adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
 adb shell am start -n io.parity.unstation.android/.MainActivity
 ```
+
+> **⚠️ `gen/android` is hand-maintained — do NOT re-run `pnpm tauri android init`.**
+> The generated tree is committed and carries real, non-regenerable code:
+> `CameraPlugin.kt` / `CameraBridge.kt` (camera publish), `PublishForegroundService.kt`
+> (backgrounded-broadcast survival), and `AndroidManifest.xml` entries (camera +
+> foreground-service permissions, the service declaration, the `polkadotapp://`
+> package-visibility query). A regen silently clobbers all of it. If a Tauri upgrade
+> requires regenerating, diff the old tree back in by hand.

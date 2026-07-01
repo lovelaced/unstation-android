@@ -3,7 +3,11 @@ package io.parity.unstation.android
 import android.Manifest
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import android.view.WindowManager
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
@@ -17,11 +21,17 @@ import android.os.HandlerThread
 import android.util.Log
 import android.view.Surface
 import app.tauri.annotation.Command
+import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.Permission
 import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.Plugin
+
+@InvokeArg
+class KeepAwakeArgs {
+    var on: Boolean = false
+}
 
 /**
  * Camera-publish capture (M4): Camera2 feeds a hardware H.264 `MediaCodec` encoder; the encoded
@@ -76,6 +86,17 @@ class CameraPlugin(private val activity: Activity) : Plugin(activity) {
     private fun doStart(invoke: Invoke) {
         try {
             startEngine()
+            // Keep the broadcast alive through backgrounding (typed camera FGS). Started
+            // from the foreground with camera granted — the API 34 preconditions hold.
+            PublishForegroundService.start(activity)
+            // Best-effort notification permission (13+) so the "You're live" notice shows;
+            // the service runs either way.
+            if (Build.VERSION.SDK_INT >= 33 &&
+                activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED
+            ) {
+                activity.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 9001)
+            }
             invoke.resolve()
         } catch (e: Throwable) {
             Log.e(TAG, "startCapture failed", e)
@@ -88,6 +109,34 @@ class CameraPlugin(private val activity: Activity) : Plugin(activity) {
     fun stopCapture(invoke: Invoke) {
         stopEngine()
         invoke.resolve()
+    }
+
+    /** Hold/release the screen-on flag (watching or broadcasting — a phone that dims
+     *  mid-match kills the party). */
+    @Command
+    fun setKeepAwake(invoke: Invoke) {
+        val on = invoke.parseArgs(KeepAwakeArgs::class.java).on
+        activity.runOnUiThread {
+            if (on) activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        invoke.resolve()
+    }
+
+    /** The recovery path after a "don't ask again" camera denial: open this app's
+     *  system settings page so the user can grant it and come back. */
+    @Command
+    fun openAppSettings(invoke: Invoke) {
+        try {
+            val i = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", activity.packageName, null),
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            activity.startActivity(i)
+            invoke.resolve()
+        } catch (e: Throwable) {
+            invoke.reject("Couldn't open Settings: ${e.message}")
+        }
     }
 
     private fun startEngine() {
@@ -208,6 +257,7 @@ class CameraPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     private fun stopEngine() {
+        PublishForegroundService.stop(activity)
         draining = false
         try { drainThread?.join(500) } catch (_: InterruptedException) {}
         drainThread = null
