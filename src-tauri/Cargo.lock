@@ -5646,6 +5646,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "segmenter"
+version = "0.0.0"
+dependencies = [
+ "bytes",
+ "unstation-core",
+]
+
+[[package]]
 name = "selectors"
 version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7418,8 +7426,10 @@ dependencies = [
  "bytes",
  "env_logger",
  "hls-server",
+ "jni",
  "log",
  "schnorrkel",
+ "segmenter",
  "serde",
  "serde_json",
  "tauri",

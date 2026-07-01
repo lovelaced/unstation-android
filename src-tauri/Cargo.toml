@@ -22,9 +22,9 @@ tauri = { version = "2", features = [] }
 # through unstation-app is NOT enough.
 tauri-plugin-opener = "2"
 # Shared command/event layer (the ~800-line handler set), reused verbatim from the desktop
-# repo. Watch-only for now: the `publish` feature is OFF, so no ffmpeg/segmenter is linked.
-# M4 enables `publish` and supplies a camera-based source.
-unstation-app = { path = "../../unstation-desktop/crates/unstation-app" }
+# repo. `publish` is ON (M4): the Android start_publish uses a camera source (Camera2 +
+# MediaCodec → FragmentBuilder), NOT ffmpeg — segmenter is linked only for its FragmentBuilder.
+unstation-app = { path = "../../unstation-desktop/crates/unstation-app", features = ["publish"] }
 
 [features]
 default = ["custom-protocol"]

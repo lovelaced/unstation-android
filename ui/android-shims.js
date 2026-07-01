@@ -81,6 +81,62 @@
 // pairing handshake so the Polkadot app shows "mobile", not "desktop").
 window.__unstationPlatformType = "mobile";
 
+// ── M4: camera publish ───────────────────────────────────────────────────────────────────
+// main.js calls these seams around go-live/stop. On desktop they're absent (RTMP/OBS ingest);
+// on Android they drive the CameraPlugin (Camera2 → MediaCodec → the Rust muxer via JNI).
+// start_publish opens the AU intake first, so startCapture is safe to call right after.
+window.__onPublishStarted = function () {
+  var t = window.__TAURI__;
+  if (t && t.core && typeof t.core.invoke === "function") {
+    return t.core.invoke("camera_start");
+  }
+  return Promise.resolve();
+};
+window.__onPublishStopped = function () {
+  var t = window.__TAURI__;
+  if (t && t.core && typeof t.core.invoke === "function") {
+    return t.core.invoke("camera_stop");
+  }
+  return Promise.resolve();
+};
+
+// The RTMP/OBS "Connect your encoder" UI is desktop-only — on mobile the phone camera is the
+// source, so there's no external encoder, server, or stream key. Hide that block and reword the
+// encoder-centric copy to be camera-native.
+(function () {
+  "use strict";
+  function cleanup() {
+    var card = document.querySelector(".ingest-card");
+    if (card) card.style.display = "none";
+    var rail = document.querySelector(".pub-rail");
+    if (rail) {
+      rail.querySelectorAll(".eyebrow").forEach(function (e) {
+        if (/encoder/i.test(e.textContent || "")) e.style.display = "none";
+      });
+    }
+    var b = document.querySelector("#pubWaiting b");
+    if (b) b.textContent = "Starting your camera…";
+    var note = document.querySelector("#pubWaiting > div");
+    if (note) note.textContent = "Your camera stream is starting — one moment.";
+    var ps = document.getElementById("phStatus");
+    if (ps) ps.textContent = "Camera";
+    var pn = document.getElementById("phNote");
+    if (pn) pn.textContent = "You’re live from your phone camera.";
+    // The End-stream button sits at the bottom of the desktop sidebar rail — off-screen /
+    // unreachable on a phone. Pin it as a fixed, full-width bottom bar so it's always tappable.
+    if (!document.getElementById("__mobilePubStyle")) {
+      var st = document.createElement("style");
+      st.id = "__mobilePubStyle";
+      st.textContent =
+        "#endStream{position:fixed !important;left:14px;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));" +
+        "width:auto;z-index:60;}";
+      document.head.appendChild(st);
+    }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cleanup);
+  else cleanup();
+})();
+
 // ── M3: HLS playback ─────────────────────────────────────────────────────────────────────
 // Android's Chromium WebView has no native HLS, so main.js's canPlayType('application/
 // vnd.apple.mpegurl') gate fails. main.js delegates to window.__hlsPlay(v, url, catchup) (a
