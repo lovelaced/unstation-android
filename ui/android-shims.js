@@ -122,16 +122,10 @@ window.__onPublishStopped = function () {
     if (ps) ps.textContent = "Camera";
     var pn = document.getElementById("phNote");
     if (pn) pn.textContent = "You’re live from your phone camera.";
-    // The End-stream button sits at the bottom of the desktop sidebar rail — off-screen /
-    // unreachable on a phone. Pin it as a fixed, full-width bottom bar so it's always tappable.
-    if (!document.getElementById("__mobilePubStyle")) {
-      var st = document.createElement("style");
-      st.id = "__mobilePubStyle";
-      st.textContent =
-        "#endStream{position:fixed !important;left:14px;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));" +
-        "width:auto;z-index:60;}";
-      document.head.appendChild(st);
-    }
+    // NOTE: "End stream" is laid out for mobile in ui/android.css (a sticky, full-width bar
+    // at the bottom of the publish-live column). An earlier position:fixed pin injected here
+    // collided with the bottom tab bar and got trapped by the scene-transition transform —
+    // the sticky CSS rule replaces it.
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cleanup);
   else cleanup();
