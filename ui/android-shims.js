@@ -56,11 +56,30 @@
     });
   };
 
-  // Tell host-papp this is a mobile host (cosmetic; affects the paired-device label).
-  window.__unstationPlatformType = "mobile";
+  // Reword the onboarding for the same-device (deep-link) flow — there's no QR to scan.
+  // (The QR + "I've scanned it" button are hidden via ui/android.css.) Module scripts run
+  // after the document is parsed, so the onboarding DOM already exists here.
+  try {
+    var scene = document.querySelector('[data-scene="onboarding"]');
+    if (scene) {
+      var p = scene.querySelector(".qr-copy p");
+      if (p) {
+        p.innerHTML =
+          "Your <b>Polkadot app</b> just opened — <b>approve the network-access request</b> " +
+          "there (you may need to sign), then come back. Your keys never leave your phone; " +
+          "this device only gets a small, revocable allowance. Sign-in is required to watch or go live.";
+      }
+    }
+  } catch (e) {
+    console.warn("[android] onboarding copy rewrite failed", e);
+  }
 
   console.log("[android] shims loaded (pairing deep-link active)");
 })();
+
+// Set the host platform as early as possible (getAdapter() in sso.js reads it for the
+// pairing handshake so the Polkadot app shows "mobile", not "desktop").
+window.__unstationPlatformType = "mobile";
 
 // ── M3: HLS playback ─────────────────────────────────────────────────────────────────────
 // Android's Chromium WebView has no native HLS, so main.js's canPlayType('application/
