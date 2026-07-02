@@ -2,14 +2,17 @@
    Android app layout — Android-only overrides, injected as an inline <style>
    by vite.config.js on top of the shared desktop styles.
 
-   Turns the desktop *window* UI into a real full-screen mobile app: fill the
-   viewport, a native bottom tab bar, and safe-area insets. Key detail: the tab
-   bar is relocated to the bottom via flex `order` (NOT position:fixed) so the
-   titlebar stays IN FLOW — that keeps the flex `.stage` from collapsing (an
-   earlier fixed-position attempt blanked every scene).
+   Turns the desktop *window* UI into a real full-screen mobile app: same
+   brand (warm near-black, coral CTA, glass HUD), re-tuned for touch. Key
+   structural detail: the tab bar is relocated to the bottom via flex `order`
+   (NOT position:fixed) so the titlebar stays IN FLOW — that keeps the flex
+   `.stage` from collapsing (an earlier fixed-position attempt blanked every
+   scene). The nav icons + hardware-back handler live in ui/android-shims.js.
    ========================================================================= */
 
-/* --- Fill the device viewport — no floating 1080x720 desktop window --- */
+/* ======================================================================
+   1 · App shell — fill the device viewport, no desktop window chrome
+   ====================================================================== */
 body.plat-android .win {
   width: 100%;
   height: 100vh;   /* fallback */
@@ -20,19 +23,12 @@ body.plat-android .win {
   box-shadow: none;
   background: var(--ground);
 }
-
-/* --- Stage on top (status-bar safe area); tab bar reordered to the bottom --- */
-body.plat-android .stage {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-body.plat-android .titlebar {
-  order: 5; /* flex `.win` is column → highest order lands the bar at the bottom */
-  height: auto;
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
-  gap: 0;
-  border-bottom: 0;
-  border-top: 1px solid var(--line);
-}
+body.plat-android .stage { padding-top: env(safe-area-inset-top, 0px); }
+/* No rubber-band glow / pull-to-refresh feel on the shell. Scrollable regions
+   below re-enable containment + momentum individually. */
+body.plat-android,
+body.plat-android .win,
+body.plat-android .stage { overscroll-behavior: none; }
 
 /* --- Drop desktop window chrome + the desktop stream-title --- */
 body.plat-android .titlebar .lights,
@@ -40,82 +36,327 @@ body.plat-android .titlebar .win-controls,
 body.plat-android .tb-brand {
   display: none !important;
 }
+/* toggleFullscreen (dblclick on the video / desktop fs) sets .win.fs, whose
+   desktop rule hides the titlebar. Android has no window fullscreen — rotating
+   to landscape IS fullscreen — so never let .fs eat the nav bar. */
+body.plat-android .win.fs .titlebar { display: flex; }
 
-/* --- Tabs → evenly-spaced native bottom-nav items --- */
+/* ======================================================================
+   2 · Touch feel — tap highlight, selection, touch-action, press states
+   ====================================================================== */
+body.plat-android,
+body.plat-android * { -webkit-tap-highlight-color: transparent; }
+/* Chrome is not text: nav, HUD, controls. Content copy + inputs + <code>
+   values stay selectable. */
+body.plat-android .titlebar,
+body.plat-android .hud,
+body.plat-android .net-head,
+body.plat-android .eyebrow,
+body.plat-android .steps,
+body.plat-android .pill,
+body.plat-android button { user-select: none; -webkit-user-select: none; }
+/* Kill the 300ms/double-tap-zoom delay on everything interactive. */
+body.plat-android :is(button, input, summary, .tab, .pill, .copy, .share-act) { touch-action: manipulation; }
+/* Explicit press feedback on EVERY interactive element: instant on press,
+   eased release via each element's existing transition. */
+body.plat-android :is(button, .pill, summary):active { opacity: .72; }
+body.plat-android .btn:active { opacity: 1; transform: translateY(1px) scale(.985); filter: brightness(.9); }
+body.plat-android .tab:active { opacity: 1; }        /* the icon pill animates instead */
+/* Hover styles stick after a tap on touch screens — neutralize the loud ones. */
+@media (hover: none) {
+  body.plat-android .tab:hover { color: var(--dim); background: transparent; }
+  body.plat-android .tab.active:hover { color: var(--brand); }
+  body.plat-android .btn:hover { filter: none; }
+  body.plat-android .btn.ghost:hover { background: rgba(255,255,255,.06); }
+  body.plat-android .copy:hover, body.plat-android .share-act:hover { background: rgba(255,255,255,.06); }
+  body.plat-android .hud-btn:hover, body.plat-android .hud-leave:hover, body.plat-android .sound-pill:hover { background: var(--glass); }
+}
+/* Inputs at 16px so the WebView never auto-zooms into a focused field. */
+body.plat-android input { font-size: 16px; }
+
+/* ======================================================================
+   3 · Motion — desktop timings feel slow at phone scale; tighten to ~240ms.
+   (The shared prefers-reduced-motion rule still zeroes all of this.)
+   ====================================================================== */
+body.plat-android .scene { transition: opacity .22s var(--ease), transform .26s var(--spring); }
+body.plat-android .scene:not(.show) { transform: scale(.99) translateY(10px); }
+body.plat-android .player { transition: opacity .3s var(--ease); }
+body.plat-android .hud { transition: opacity .26s var(--ease), transform .3s var(--spring); }
+body.plat-android .net { transition: transform .34s var(--spring); }
+
+/* ======================================================================
+   4 · Bottom navigation — three icon+label items on a raised solid surface.
+   Solid (not blurred): the bar is in-flow, nothing ever scrolls behind it,
+   so backdrop blur would cost GPU for zero visual payoff.
+   ====================================================================== */
+body.plat-android .titlebar {
+  order: 5; /* flex `.win` is column → highest order lands the bar at the bottom */
+  height: auto;
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
+  gap: 0;
+  border-bottom: 0;
+  border-top: 1px solid var(--line);
+  background: var(--surface-1);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/* Onboarding hides the tabs (state.js setActiveTab) — hide the empty bar too. */
+body.plat-android .titlebar:has(.tabs[hidden]) { display: none; }
+/* The keyboard (adjustResize) shrinks the viewport — don't let the nav ride
+   up and squat above it. body.kb-open is set by the shim's viewport watcher. */
+body.plat-android.kb-open .titlebar { display: none; }
+
 body.plat-android .titlebar .tabs {
   width: 100%;
-  gap: 4px;
+  gap: 0;
   justify-content: space-around;
 }
 body.plat-android .titlebar .tab {
-  flex: 1;
+  flex: 1 1 0;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   align-items: center;
   justify-content: center;
-  padding: 8px 4px;
+  min-height: 56px;
+  padding: 6px 4px 8px;
   font-size: 11px;
-  border-radius: 12px;
+  font-weight: 590;
+  letter-spacing: .2px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
 }
+body.plat-android .tab.active { background: transparent; border-color: transparent; color: var(--brand); }
+/* Icon pill — the one place the bar spends color: active = coral-tinted. */
+body.plat-android .tab-ico {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  transition: background var(--t-control) var(--ease), transform var(--t-hover) var(--ease);
+}
+body.plat-android .tab-ico svg { width: 22px; height: 22px; }
+body.plat-android .tab.active .tab-ico { background: rgba(255, 92, 122, .14); }
+body.plat-android .tab:active .tab-ico { transform: scale(.92); background: rgba(255, 255, 255, .07); }
+/* The live badge (#goLiveRec) rides the Go Live icon's top-right corner. */
+body.plat-android .tab-ico .rec { position: absolute; top: 2px; right: 13px; }
 
-/* --- Watch/live: full-bleed video (the HUD is anchored to the stage bottom,
-       which now sits just above the tab bar — no repositioning needed) --- */
-body.plat-android .player .frame {
+/* ======================================================================
+   5 · Type + rhythm — base copy ≥15px, headlines clamped for 360–430 widths
+   ====================================================================== */
+body.plat-android h1.display { font-size: clamp(28px, 8vw, 40px); line-height: 1.05; }
+body.plat-android .sub { font-size: 15px; line-height: 1.5; }
+body.plat-android .hint { font-size: 12.5px; line-height: 1.5; letter-spacing: .2px; }
+/* Scenes clear the transparent status bar themselves (they're absolutely
+   positioned, so the stage's safe-area padding doesn't reach them). */
+body.plat-android .scene { padding: calc(env(safe-area-inset-top, 0px) + 28px) 20px 24px; }
+
+/* ======================================================================
+   6 · Entry — hero + a thumb-zone watch form + the compact trust pitch
+   ====================================================================== */
+body.plat-android .scene[data-scene="entry"] {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 26px;
+  padding: calc(env(safe-area-inset-top, 0px) + 32px) 20px 20px;
+  text-align: left;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+body.plat-android .entry-action { width: 100%; align-items: flex-start; text-align: left; gap: 16px; }
+body.plat-android .entry-action h1.display { font-size: clamp(30px, 8.8vw, 42px); }
+body.plat-android .entry-action .cmd { width: 100%; min-height: 56px; padding: 6px 6px 6px 16px; }
+body.plat-android .cmd input { min-height: 44px; }
+body.plat-android .cmd .btn { min-height: 44px; padding: 0 20px; font-size: 15px; }
+body.plat-android .entry-panel { width: 100%; padding: 18px; gap: 14px; }
+body.plat-android .assure { gap: 16px; }
+body.plat-android .assure li { font-size: 13.5px; line-height: 1.5; gap: 12px; }
+body.plat-android .assure li b { font-size: 14.5px; }
+body.plat-android .assure li svg { width: 20px; height: 20px; margin-top: 2px; }
+body.plat-android .entry-panel .btn.ghost { min-height: 48px; }
+
+/* ======================================================================
+   7 · Finding — orb + steps centered, readable at phone width
+   ====================================================================== */
+body.plat-android .scene[data-scene="finding"] { gap: 18px; padding-left: 28px; padding-right: 28px; }
+body.plat-android .steps { gap: 12px; margin-top: 8px; }
+body.plat-android .step { font-size: 13px; }
+body.plat-android .step .dot { width: 8px; height: 8px; }
+
+/* ======================================================================
+   8 · Live player — portrait: video full-bleed 16:9 at the top, HUD overlaid
+   on the video, the connection story ALWAYS visible below it (no hidden
+   drawer), Leave thumb-reachable at the panel's bottom (moved by the shim).
+   ====================================================================== */
+@media (orientation: portrait) {
+  body.plat-android #player { flex-direction: column; align-items: stretch; justify-content: flex-start; }
+  body.plat-android #player .frame {
+    margin-top: env(safe-area-inset-top, 0px);
+    width: 100%;
+    height: auto;
+    max-width: none;
+    aspect-ratio: 16 / 9;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+  }
+  /* HUD hugs the bottom edge of the video (not the stage). 56.25vw = the
+     16:9 frame's height at full width. */
+  body.plat-android .hud {
+    bottom: auto;
+    top: calc(env(safe-area-inset-top, 0px) + 56.25vw);
+    transform: translateY(calc(-100% + 8px));
+    padding: 10px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  body.plat-android .hud.show { transform: translateY(-100%); }
+  /* The "your connection" panel is the below-video content, not a drawer:
+     solid ground (nothing behind it to blur), scrolls if it must. */
+  body.plat-android .hud.show ~ .net {
+    transform: none;
+    top: calc(env(safe-area-inset-top, 0px) + 56.25vw);
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 18px 16px;
+    background: var(--ground);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    border-top: 1px solid var(--line);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Leave rides the bottom of the panel — the thumb zone (flex column + auto margin;
+     the panel is a plain block in landscape, where auto would collapse to 0). */
+  body.plat-android .hud.show ~ .net .hud-leave { margin-top: auto; }
+  /* The pill's chevron promises a drawer that no longer exists in portrait. */
+  body.plat-android .pill .chev { display: none; }
+  body.plat-android #player .sound-pill { bottom: 76px; }
+}
+/* Landscape: immersive — the tab bar goes away while watching, the video owns
+   the whole viewport, the HUD floats over it (safe-area aware, cutouts). */
+@media (orientation: landscape) {
+  body.plat-android .win:has(#player.show) .titlebar { display: none; }
+  body.plat-android #player .frame {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    aspect-ratio: auto;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+  }
+  body.plat-android .hud {
+    padding: 12px max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+  body.plat-android .net {
+    padding: 18px max(18px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+  }
+}
+/* HUD controls: ≥44px targets. Window-fullscreen is meaningless on a phone
+   (rotate = fullscreen), so the fs button goes. */
+body.plat-android #fsBtn { display: none !important; }
+body.plat-android .hud .hud-btn, body.plat-android .hud-leave, body.plat-android .pill { min-height: 44px; }
+body.plat-android .pill { padding: 9px 15px; }
+/* Leave, relocated into the connection panel by the shim: a full-width,
+   clearly-tappable exit at the thumb end of the panel. */
+body.plat-android .net .hud-leave {
+  position: static;
+  margin-top: 14px; /* portrait's flex panel overrides this to `auto` (thumb zone) */
   width: 100%;
-  max-width: 100%;
-  border-radius: 0;
+  min-height: 50px;
+  text-align: center;
+  font-size: 15px;
+  background: rgba(255, 255, 255, .06);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--line-strong);
 }
-
-/* --- Settings: full-width card + comfortable touch rows --- */
-body.plat-android .settings-card {
-  width: 100%;
-}
-body.plat-android .set-row {
-  padding: 16px 18px;
-}
-
-/* --- Same-device pairing uses the polkadotapp:// deep-link, not a QR to scan --- */
-body.plat-android #qrBox,
-body.plat-android #pairedBtn {
-  display: none !important;
-}
-
-/* --- Player chips (unmute pill + skip-to-live): comfortable ≥44px touch targets --- */
+body.plat-android .health-note { font-size: 13.5px; }
+body.plat-android .vmetrics { gap: 14px 16px; }
+/* Player chips (unmute pill + skip-to-live): comfortable ≥44px touch targets. */
 body.plat-android #soundPill,
 body.plat-android #skipLiveBtn,
 body.plat-android #muteBtn {
   min-height: 44px;
   min-width: 44px;
-  padding: 12px 18px;
+  padding: 11px 18px;
   font-size: 14px;
 }
 body.plat-android #soundPill[hidden],
 body.plat-android #skipLiveBtn[hidden] {
   display: none;
 }
+/* Catchup / stall-ladder overlay: legible over video, ≥44px actions. */
+body.plat-android .frame .catchup { font-size: 13.5px; padding: 16px; text-align: center; }
+body.plat-android .giveup-row { flex-wrap: wrap; justify-content: center; }
+body.plat-android .giveup-row .btn { min-height: 48px; padding: 12px 22px; }
 
-/* --- Publish (go-live) scene: fit the stage, keep "End stream" reachable ---
-   The desktop publish-live layout is a two-column stage|rail sized for a tall window;
-   the rail pushes "End stream" to the bottom of a long sidebar. On a phone that sidebar
-   runs off the bottom of the screen — and an earlier `position:fixed` pin was worse: the
-   `.scene` transition animates `transform`, which turns the scene into the containing
-   block for fixed descendants (trapping the button mid-scene), and the bottom tab bar sat
-   on top of it. Fix: make the live view a column that fits the `.stage` (which already ends
-   above the tab bar) — a capped self-preview, a scrollable info rail, and "End stream"
-   pinned with `position: sticky` (bottom of the scroll container, never trapped or hidden). */
-body.plat-android .scene[data-scene="publish"] { overflow: hidden; }
+/* ======================================================================
+   9 · Publish setup — single column, big name field, Go Live in the thumb zone
+   ====================================================================== */
+body.plat-android .scene[data-scene="publish"] {
+  overflow: hidden; /* the console manages its own scrolling (see .pub-rail) */
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px 14px;
+}
+/* The scene itself is overflow:hidden (the console needs it) — so the setup step
+   scrolls on its own when the keyboard (adjustResize) shrinks the viewport,
+   instead of clipping the Go Live CTA. */
+body.plat-android #pubSetup { align-items: stretch; justify-content: flex-start; text-align: left; gap: 14px; height: 100%; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+body.plat-android #pubSetup .pub-left { width: 100%; flex: 1 1 auto; align-items: stretch; gap: 16px; }
+body.plat-android #pubSetup .cmd { min-height: 56px; padding: 6px 6px 6px 16px; }
+body.plat-android #pubSetup .hint { text-align: left; }
+/* CTA block rides the bottom — right above the keyboard once the name field opens it. */
+body.plat-android #pubSetup .pub-actions { margin-top: auto; flex-direction: column; align-items: stretch; gap: 10px; padding-bottom: 4px; }
+body.plat-android #startStream { min-height: 52px; font-size: 16px; }
+body.plat-android #cancelPublish { min-height: 48px; }
 
-body.plat-android #pubLive { height: 100%; gap: 10px; }
+/* ======================================================================
+   10 · Publish console — single column: preview video → status + preflight →
+   stats (2-col cells) → share/invite → sticky End stream.
+   The desktop layout is a two-column stage|rail sized for a tall window; the
+   phone version is a column that fits the `.stage` (which already ends above
+   the tab bar) — capped self-preview, scrollable rail, "End stream" pinned
+   with `position: sticky` (an earlier position:fixed pin got trapped by the
+   scene transition's transform and sat under the tab bar).
+   ====================================================================== */
+body.plat-android #pubLive { height: 100%; gap: 12px; }
 body.plat-android #pubLive .pub-stage { flex: 0 0 auto; }
 /* Self-preview: full width, but capped so the rail + End button always have room. */
-body.plat-android #pubLive .pub-frame { width: 100%; max-height: 40vh; }
+body.plat-android #pubLive .pub-frame { width: 100%; max-height: 40vh; border-radius: 14px; }
 /* Info rail scrolls internally instead of overflowing the scene. */
 body.plat-android #pubLive .pub-rail {
   flex: 1 1 auto;
   min-height: 0;
+  gap: 12px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
+/* Column order (flex order, no DOM changes): health card first, then share. */
+body.plat-android #pubLive .pub-rail > .pub-health { order: 1; }
+body.plat-android #pubLive .pub-rail > .share-bar { order: 2; }
+body.plat-android #pubLive .pub-rail > .invite-bar { order: 3; }
+body.plat-android #pubLive .pub-rail > .rail-spacer { order: 8; }
+body.plat-android #pubLive .pub-rail > #endStream { order: 9; }
+/* Inside the health card: status line first, then the preflight steps, then stats. */
+body.plat-android .pub-health { gap: 13px; }
+body.plat-android .pub-health .ph-row { order: -1; }
+body.plat-android .pub-steps { gap: 8px 18px; }
+body.plat-android .ph-status { font-size: 16px; }
+body.plat-android .ph-note { font-size: 13px; line-height: 1.5; }
+/* Stat cells: a 2-col grid of real cells (the desktop 3-up row wraps badly at 360). */
+body.plat-android .ph-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+body.plat-android .ph-stat { padding: 10px 12px; background: var(--well); border: 1px solid var(--line); border-radius: 10px; }
+body.plat-android .ph-stat .v { font-size: 17px; margin-top: 4px; }
+body.plat-android .pub-preview-link { min-height: 44px; padding: 10px 0; font-size: 13.5px; }
 /* End stream: full-width, pinned to the bottom of the rail as it scrolls. Sticky (not
    fixed) so it rides the scene's own stacking/containing block — always tappable, never
    behind the tab bar. Opaque backing so scrolled content can't bleed through the ghost. */
@@ -125,13 +366,14 @@ body.plat-android #pubLive #endStream {
   z-index: 2;
   width: 100%;
   margin-top: 8px;
+  min-height: 52px;
   padding: 15px 16px;
   font-size: 15px;
+  border-radius: 14px;
   background: var(--surface-2);
   border-color: var(--line-strong);
 }
-
-/* --- Invite share bar + QR overlay: comfortable ≥44px touch targets --- */
+/* Invite share bar + QR overlay: comfortable ≥44px touch targets. */
 body.plat-android .share-bar .copy,
 body.plat-android .share-act {
   min-height: 44px;
@@ -150,12 +392,57 @@ body.plat-android .invite-qr-card .qr {
   height: min(70vw, 240px);
 }
 body.plat-android #inviteQrClose {
-  min-height: 44px;
+  min-height: 48px;
   width: 100%;
 }
 /* Camera-permission recovery actions (Open Settings / Try again) in the waiting box. */
+body.plat-android .cam-recovery { flex-wrap: wrap; }
 body.plat-android .cam-recovery button {
   min-height: 44px;
   padding: 12px 18px;
   font-size: 14px;
 }
+
+/* ======================================================================
+   11 · Settings — edge-to-edge status rows; buttons inside rows look tappable
+   ====================================================================== */
+body.plat-android .scene[data-scene="settings"] {
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 14px;
+  padding: calc(env(safe-area-inset-top, 0px) + 28px) 0 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+body.plat-android .scene[data-scene="settings"] .eyebrow { padding: 0 20px; }
+body.plat-android .settings-card { width: 100%; border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+body.plat-android .set-row { padding: 16px 20px; flex-wrap: wrap; row-gap: 12px; }
+body.plat-android .set-k { font-size: 11px; }
+body.plat-android .set-v { font-size: 15px; line-height: 1.45; margin-top: 4px; }
+body.plat-android .set-row .btn { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+
+/* ======================================================================
+   12 · Onboarding — deep-link pairing: centered copy, one clear CTA
+   ====================================================================== */
+/* Same-device pairing uses the polkadotapp:// deep-link, not a QR to scan. */
+body.plat-android #qrBox,
+body.plat-android #pairedBtn {
+  display: none !important;
+}
+body.plat-android .qr-card { flex-direction: column; width: 100%; max-width: 440px; padding: 24px 22px; gap: 16px; }
+body.plat-android .qr-copy { align-items: center; text-align: center; gap: 12px; }
+body.plat-android .qr-copy h2 { font-size: 22px; }
+body.plat-android .qr-copy p { font-size: 15px; line-height: 1.55; }
+body.plat-android .qr-copy .row { flex-direction: column; align-items: stretch; width: 100%; margin-top: 4px; }
+body.plat-android .qr-copy .row .btn { min-height: 50px; font-size: 15px; }
+body.plat-android .await { justify-content: center; font-size: 13px; line-height: 1.5; text-align: left; }
+body.plat-android #allowRetry { flex-direction: column; align-items: stretch; width: 100%; }
+body.plat-android #allowRetry .btn { min-height: 50px; }
+
+/* ======================================================================
+   13 · Ended — centered card, Rejoin as the primary full-width action
+   ====================================================================== */
+body.plat-android .scene[data-scene="ended"] .row { flex-direction: column; align-items: stretch; width: min(360px, 100%); }
+body.plat-android .scene[data-scene="ended"] .row .btn { min-height: 52px; font-size: 16px; }

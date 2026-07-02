@@ -81,6 +81,133 @@
 // pairing handshake so the Polkadot app shows "mobile", not "desktop").
 window.__unstationPlatformType = "mobile";
 
+// ── Design pass: native bottom navigation ──────────────────────────────────────────────
+// The shared titlebar tabs are text buttons; ui/android.css relocates the bar to the
+// bottom. Here we rebuild each tab as icon + label (inline SVGs in the brand's stroke
+// style — same 24px/1.8 stroke vocabulary as the shared markup's icons). The existing
+// #goLiveRec live badge is MOVED (same node — state.js holds a reference) onto the
+// Go Live icon's corner. Module scripts run after the document is parsed, so the DOM
+// exists; this runs before main.js binds its listeners, and listeners bind to the
+// buttons themselves, so the rebuild is invisible to the shared code.
+(function () {
+  "use strict";
+  var STROKE = ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
+  var ICONS = {
+    // Watch — the brand's play triangle (the wordmark's play-dot, unboxed).
+    watch: '<svg' + STROKE + '><path d="M7 4.8 19 12 7 19.2Z"/></svg>',
+    // Go Live — a broadcast dot with radiating arcs.
+    golive: '<svg' + STROKE + '><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><path d="M19.1 4.9c3.9 3.9 3.9 10.3 0 14.2"/><path d="M4.9 19.1c-3.9-3.9-3.9-10.3 0-14.2"/></svg>',
+    // Settings — gear.
+    settings: '<svg' + STROKE + '><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+  };
+  try {
+    document.querySelectorAll(".titlebar .tab").forEach(function (btn) {
+      var svg = ICONS[btn.dataset.tab];
+      if (!svg) return;
+      var rec = btn.querySelector(".rec"); // #goLiveRec — must survive (state.js contract)
+      var label = (btn.textContent || "").trim();
+      btn.textContent = "";
+      var ico = document.createElement("span");
+      ico.className = "tab-ico";
+      ico.innerHTML = svg;
+      if (rec) ico.appendChild(rec); // the red live dot rides the icon's corner
+      var lbl = document.createElement("span");
+      lbl.className = "tab-lbl";
+      lbl.textContent = label;
+      btn.append(ico, lbl);
+    });
+    // Thumb-reachable Leave: move the HUD's Leave button (same node — main.js binds it
+    // by id) to the end of the connection panel, which portrait CSS shows below the
+    // video. Landscape keeps it inside the pill-toggled drawer.
+    var net = document.getElementById("net");
+    var leave = document.getElementById("leaveWatchBtn");
+    if (net && leave) net.appendChild(leave);
+  } catch (e) {
+    console.warn("[android] bottom-nav rebuild failed", e);
+  }
+})();
+
+// ── Design pass: hardware back button ──────────────────────────────────────────────────
+// Wry's default Android back handler calls webview.goBack() when history allows and
+// backgrounds the app otherwise. We keep the SPA history exactly ONE entry deep while
+// off the entry scene ({u:1}, replaced — never pushed again — on further scene changes,
+// so Rejoin/deep-links can't grow it unboundedly) and collapse to the root ({u:0}) on
+// entry. A back press therefore pops to the root and lands in the popstate handler,
+// which routes: overlays close first; live watch → Leave; publish console → entry with
+// the stream still running (the tab badge shows it); entry itself has no history left,
+// so the next press backgrounds the app.
+(function () {
+  "use strict";
+  var lastScene = "entry"; // mirrors S.curState via the __onSceneChange seam
+  try { history.replaceState({ u: 0 }, ""); } catch (e) {}
+
+  function atLeaf() { return !!(history.state && history.state.u === 1); }
+  function arm() { // ensure exactly one back-consumable entry exists
+    try {
+      if (atLeaf()) history.replaceState({ u: 1 }, "");
+      else history.pushState({ u: 1 }, "");
+    } catch (e) {}
+  }
+
+  // Called synchronously from state.js go() on every scene change.
+  window.__onSceneChange = function (scene) {
+    lastScene = scene;
+    if (scene === "entry") {
+      // Home: consume the leaf so the NEXT back press backgrounds the app. The
+      // resulting popstate no-ops below (lastScene is already 'entry').
+      if (atLeaf()) { try { history.back(); } catch (e) {} }
+    } else {
+      arm();
+    }
+  };
+
+  window.addEventListener("popstate", function (ev) {
+    var st = ev.state || {};
+    if (st.u !== 0) return;            // not our root marker — ignore (guards stray fires)
+    if (lastScene === "entry") return; // our own collapsing back(), or already home
+    // 1) Overlays close first, and the leaf is re-armed (scene unchanged).
+    var qr = document.getElementById("inviteQrBox");
+    if (qr && !qr.hidden) {
+      var close = document.getElementById("inviteQrClose");
+      if (close) close.click(); else qr.hidden = true;
+      arm();
+      return;
+    }
+    var win = document.getElementById("win");
+    if (win && win.dataset.net === "open") {
+      win.dataset.net = "closed";
+      arm();
+      return;
+    }
+    // 2) Live watch (incl. the give-up card, whose exit IS Leave) → confirmation-free
+    //    leave; finding → cancel the in-flight watch the same way.
+    if (lastScene === "live" || lastScene === "seed" || lastScene === "catchup" || lastScene === "finding") {
+      var leave = document.getElementById("leaveWatchBtn");
+      if (leave) { leave.click(); return; } // leaveWatch → go('entry') keeps us at the root
+    }
+    // 3) Publish console/setup (stream keeps running — the tab badge shows it),
+    //    settings, onboarding, ended → home.
+    if (window.__go) window.__go("entry");
+  });
+})();
+
+// ── Design pass: keyboard watcher ──────────────────────────────────────────────────────
+// windowSoftInputMode=adjustResize shrinks the whole viewport when the keyboard opens;
+// without this the bottom nav rides up and squats above the keyboard. Track the largest
+// seen height per orientation and flag big shrinks as "keyboard open" (ui/android.css
+// hides the nav on body.kb-open).
+(function () {
+  "use strict";
+  var maxH = { p: 0, l: 0 };
+  function check() {
+    var h = window.innerHeight, w = window.innerWidth, k = w > h ? "l" : "p";
+    if (h > maxH[k]) maxH[k] = h;
+    document.body.classList.toggle("kb-open", maxH[k] - h > 160);
+  }
+  window.addEventListener("resize", check);
+  check();
+})();
+
 // ── M4: camera publish ───────────────────────────────────────────────────────────────────
 // main.js calls these seams around go-live/stop. On desktop they're absent (RTMP/OBS ingest);
 // on Android they drive the CameraPlugin (Camera2 → MediaCodec → the Rust muxer via JNI).
