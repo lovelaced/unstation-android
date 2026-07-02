@@ -33,6 +33,12 @@ class KeepAwakeArgs {
     var on: Boolean = false
 }
 
+@InvokeArg
+class StartCaptureArgs {
+    /** "480" | "720" | "1080" from the app's Camera-quality setting; null/unknown = 720p. */
+    var quality: String? = null
+}
+
 /**
  * Camera-publish capture (M4): Camera2 feeds a hardware H.264 `MediaCodec` encoder; the encoded
  * access units are pushed to the Rust core via [CameraBridge], which muxes them into CMAF and
@@ -56,14 +62,26 @@ class CameraPlugin(private val activity: Activity) : Plugin(activity) {
 
     companion object {
         private const val TAG = "UnstationCamera"
-        private const val W = 1280
-        private const val H = 720
-        private const val BITRATE = 2_500_000
         private const val FPS = 30
     }
 
+    // Capture quality — set per startCapture from the app's "Camera quality" setting
+    // ("480" | "720" | "1080"; anything else keeps the 720p default). Bitrates track the
+    // resolution: enough for a sharp feed, low enough for a phone uplink.
+    private var capW = 1280
+    private var capH = 720
+    private var capBitrate = 2_500_000
+
     @Command
     fun startCapture(invoke: Invoke) {
+        try {
+            when (invoke.parseArgs(StartCaptureArgs::class.java).quality) {
+                "480" -> { capW = 854; capH = 480; capBitrate = 1_200_000 }
+                "1080" -> { capW = 1920; capH = 1080; capBitrate = 4_500_000 }
+                else -> { capW = 1280; capH = 720; capBitrate = 2_500_000 }
+            }
+        } catch (e: Throwable) { /* missing/old args → keep the 720p default */ }
+        Log.i(TAG, "capture quality ${capW}x${capH} @ ${capBitrate}bps")
         // If the camera isn't granted yet, request it and proceed automatically once the user
         // responds (via onCameraPermission) — no "go back and Go Live again". Tauri holds the
         // invoke across the prompt, so a single Go Live tap flows straight through.
@@ -154,9 +172,9 @@ class CameraPlugin(private val activity: Activity) : Plugin(activity) {
         var enc: MediaCodec? = null
         var lastErr: Throwable? = null
         for ((i, profile) in profiles.withIndex()) {
-            val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, W, H).apply {
+            val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, capW, capH).apply {
                 setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-                setInteger(MediaFormat.KEY_BIT_RATE, BITRATE)
+                setInteger(MediaFormat.KEY_BIT_RATE, capBitrate)
                 setInteger(MediaFormat.KEY_FRAME_RATE, FPS)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1) // ~1s GOP → one CMAF fragment per GOP
                 setInteger(MediaFormat.KEY_PROFILE, profile)
@@ -180,7 +198,7 @@ class CameraPlugin(private val activity: Activity) : Plugin(activity) {
 
         startDrain()
         openCamera()
-        Log.i(TAG, "capture started ${W}x${H}@${FPS} ${BITRATE}bps")
+        Log.i(TAG, "capture started ${capW}x${capH}@${FPS} ${capBitrate}bps")
     }
 
     private fun startDrain() {
@@ -203,7 +221,7 @@ class CameraPlugin(private val activity: Activity) : Plugin(activity) {
                     buf.get(bytes)
                     if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) {
                         CameraBridge.splitCsd(bytes)?.let { (sps, pps) ->
-                            CameraBridge.nativeConfig(sps, pps, W, H)
+                            CameraBridge.nativeConfig(sps, pps, capW, capH)
                         }
                     } else {
                         val keyframe = info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0

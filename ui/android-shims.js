@@ -215,7 +215,11 @@ window.__unstationPlatformType = "mobile";
 window.__onPublishStarted = function () {
   var t = window.__TAURI__;
   if (t && t.core && typeof t.core.invoke === "function") {
-    return t.core.invoke("camera_start");
+    // Camera quality comes from Settings ("Camera quality"); 480/720/1080. The plugin
+    // treats anything unknown as the 720p default, so a stale stored value is harmless.
+    var q = null;
+    try { q = localStorage.getItem("camQuality"); } catch (e) {}
+    return t.core.invoke("camera_start", { quality: q || null });
   }
   return Promise.resolve();
 };
