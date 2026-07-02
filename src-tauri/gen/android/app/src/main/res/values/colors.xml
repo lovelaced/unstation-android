@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Unstation brand ground (matches the app's --ground token) — the window
+    <!-- Unstation brand ground (matches the app's ground CSS token) — the window
          background so launch never flashes white before the webview paints. -->
     <color name="unstation_ground">#FF0B0B0E</color>
     <color name="black">#FF000000</color>

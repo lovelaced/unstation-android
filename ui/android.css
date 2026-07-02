@@ -193,6 +193,12 @@ body.plat-android .step .dot { width: 8px; height: 8px; }
    drawer), Leave thumb-reachable at the panel's bottom (moved by the shim).
    ====================================================================== */
 @media (orientation: portrait) {
+  /* Portrait drops the toggled drawer for an always-visible-below-video panel, so the
+     desktop `.net` (position:absolute; bottom:0; translateY(100%)) has no role here —
+     and with the nav relocated to the bottom (order:5) its "hidden" transform actually
+     peeked the panel OVER the nav on entry/publish/settings. Hide it outright; the
+     `.hud.show ~ .net` rule below re-shows it (higher specificity) only while watching. */
+  body.plat-android .net { display: none; }
   body.plat-android #player { flex-direction: column; align-items: stretch; justify-content: flex-start; }
   body.plat-android #player .frame {
     margin-top: env(safe-area-inset-top, 0px);
@@ -258,6 +264,12 @@ body.plat-android .step .dot { width: 8px; height: 8px; }
   }
   body.plat-android .net {
     padding: 18px max(18px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+  }
+  /* Full-bleed landscape video runs under the system status bar (edge-to-edge) —
+     push the LIVE tag clear of the clock/cutout so they don't collide. */
+  body.plat-android .frame .live-tag {
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    left: max(12px, env(safe-area-inset-left, 0px));
   }
 }
 /* HUD controls: ≥44px targets. Window-fullscreen is meaningless on a phone
