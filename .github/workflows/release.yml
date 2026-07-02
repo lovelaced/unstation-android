@@ -1,0 +1,81 @@
+name: Release (draft + notes)
+
+# Cut a DRAFT GitHub Release whenever a version tag is pushed: gate on the
+# frontend build (the shim-injection seam over the shared desktop tree — the
+# thing that actually drifts), generate notes, and open the draft for artifacts.
+#
+# CI cannot build the APK itself — the Rust core links the private chain SDK —
+# so the APK/AAB is built on a trusted machine with the Android toolchain
+# (see README "Build from source"; NDK r28+) and uploaded to the draft with
+# `gh release upload` before publishing.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)draft a release for (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  gate:
+    name: frontend build (release gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: unstation-android
+      - name: Check out unstation-desktop as the expected sibling
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.DESKTOP_REPO || format('{0}/unstation-desktop', github.repository_owner) }}
+          ref: ${{ vars.DESKTOP_REF || 'master' }}
+          token: ${{ secrets.DESKTOP_TOKEN || github.token }}
+          path: unstation-desktop
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install deps
+        working-directory: unstation-android
+        run: pnpm install
+      - name: Vite build (shim injection over the shared tree)
+        working-directory: unstation-android
+        run: pnpm exec vite build
+
+  draft:
+    name: draft release + notes
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          git rev-parse "refs/tags/$TAG" >/dev/null # fail fast on a bad dispatch input
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          # gh prepends provided notes to the generated ones — write it as a preamble.
+          cat > preamble.md <<'EOF'
+          _The APK is built on a maintainer machine (the Rust core links a private chain SDK, so CI can't build it) and attached here with a `SHA256SUMS` file — verify downloads against it. Requires Android 8+ and the Polkadot app for sign-in._
+          EOF
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $TAG exists — leaving as-is"
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --draft --title "Unstation for Android $TAG" \
+              --generate-notes --notes-file preamble.md
+          fi
