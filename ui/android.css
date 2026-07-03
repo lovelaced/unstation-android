@@ -352,10 +352,14 @@ body.plat-android #pubLive .pub-rail {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
-/* Column order (flex order, no DOM changes): health card first, then share. */
+/* Column order (flex order, no DOM changes): health card first, then the share bar with
+   its "or viewers just type <name>" hint line right beneath it. Everything in the rail
+   MUST get an explicit order — an unordered child (order 0) floats above the health card
+   and gets squeezed against the video (a clipped stray line of text). */
 body.plat-android #pubLive .pub-rail > .pub-health { order: 1; }
-body.plat-android #pubLive .pub-rail > .share-bar { order: 2; }
-body.plat-android #pubLive .pub-rail > .invite-bar { order: 3; }
+body.plat-android #pubLive .pub-rail > .invite-bar { order: 2; }
+body.plat-android #pubLive .pub-rail > .share-alt { order: 3; margin-top: -4px; padding: 0 8px; }
+body.plat-android #pubLive .pub-rail > .fast-invite-row { order: 4; }
 body.plat-android #pubLive .pub-rail > .rail-spacer { order: 8; }
 body.plat-android #pubLive .pub-rail > #endStream { order: 9; }
 /* Inside the health card: status line first, then the preflight steps, then stats. */
