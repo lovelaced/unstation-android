@@ -188,48 +188,65 @@ body.plat-android .step { font-size: 13px; }
 body.plat-android .step .dot { width: 8px; height: 8px; }
 
 /* ======================================================================
-   8 · Live player — portrait: video full-bleed 16:9 at the top, HUD overlaid
-   on the video, the connection story ALWAYS visible below it (no hidden
-   drawer), Leave thumb-reachable at the panel's bottom (moved by the shim).
+   8 · Live player — portrait: a top-to-bottom FLOW while watching — the video
+   block (sized from the stream's REAL aspect via --vid-ar, so vertical streams
+   get a tall box), the HUD bar below it, and the connection story filling the
+   rest. Nothing overlays the video and nothing is pinned to a magic 16:9
+   offset: a wrapped HUD pushes the panel down instead of growing INTO the
+   video, and any aspect (16:9, 9:16, square) sizes correctly.
    ====================================================================== */
 @media (orientation: portrait) {
-  /* Portrait drops the toggled drawer for an always-visible-below-video panel, so the
-     desktop `.net` (position:absolute; bottom:0; translateY(100%)) has no role here —
-     and with the nav relocated to the bottom (order:5) its "hidden" transform actually
-     peeked the panel OVER the nav on entry/publish/settings. Hide it outright; the
-     `.hud.show ~ .net` rule below re-shows it (higher specificity) only while watching. */
+  /* The desktop `.net` drawer (position:absolute; bottom:0; translateY(100%)) has no
+     role in portrait — and with the nav relocated to the bottom (order:5) its "hidden"
+     transform actually peeked the panel OVER the nav on entry/publish/settings. Hide it
+     outright; the `.hud.show ~ .net` rule below re-shows it only while watching. */
   body.plat-android .net { display: none; }
-  body.plat-android #player { flex-direction: column; align-items: stretch; justify-content: flex-start; }
-  body.plat-android #player .frame {
+  /* While watching, the stage stacks video → HUD → panel as real document flow. */
+  body.plat-android .win:has(#player.show) .stage { display: flex; flex-direction: column; }
+  body.plat-android #player.show {
+    position: static;
+    order: 0;
+    flex: 0 0 auto;
+    /* The video box: as tall as the stream's shape wants at full width, capped so a
+       9:16 vertical stream still leaves room for the HUD + connection story. --vid-ar
+       is published by player.js from the real videoWidth/Height (default 16:9). */
+    height: min(calc(100vw / var(--vid-ar, 1.7778)), 62vh);
     margin-top: env(safe-area-inset-top, 0px);
+  }
+  body.plat-android #player .frame {
     width: 100%;
-    height: auto;
+    height: 100%;
     max-width: none;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: auto;
     border-radius: 0;
     border: 0;
     box-shadow: none;
   }
-  /* HUD hugs the bottom edge of the video (not the stage). 56.25vw = the
-     16:9 frame's height at full width. */
+  /* HUD: a normal bar UNDER the video (no overlay, no upward growth). Wrapping on a
+     narrow screen just makes the bar taller and pushes the panel down. */
   body.plat-android .hud {
-    bottom: auto;
-    top: calc(env(safe-area-inset-top, 0px) + 56.25vw);
-    transform: translateY(calc(-100% + 8px));
+    position: static;
+    order: 1;
+    flex: 0 0 auto;
+    display: none;
+    transform: none;
     padding: 10px 12px;
     gap: 8px;
     flex-wrap: wrap;
+    pointer-events: auto;
   }
-  body.plat-android .hud.show { transform: translateY(-100%); }
-  /* The "your connection" panel is the below-video content, not a drawer:
-     solid ground (nothing behind it to blur), scrolls if it must. */
+  body.plat-android .hud.show { display: flex; transform: none; }
+  /* The "your connection" panel fills the remaining space: solid ground, scrolls if
+     it must, Leave thumb-reachable at its bottom (moved there by the shim). */
   body.plat-android .hud.show ~ .net {
+    position: static;
+    order: 2;
+    flex: 1 1 auto;
+    min-height: 0;
     transform: none;
-    top: calc(env(safe-area-inset-top, 0px) + 56.25vw);
-    bottom: 0;
     display: flex;
     flex-direction: column;
-    padding: 20px 18px 16px;
+    padding: 14px 18px 16px;
     background: var(--ground);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -239,12 +256,11 @@ body.plat-android .step .dot { width: 8px; height: 8px; }
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
-  /* Leave rides the bottom of the panel — the thumb zone (flex column + auto margin;
-     the panel is a plain block in landscape, where auto would collapse to 0). */
   body.plat-android .hud.show ~ .net .hud-leave { margin-top: auto; }
-  /* The pill's chevron promises a drawer that no longer exists in portrait. */
+  /* The pill's chevron promises a drawer that doesn't exist in portrait. */
   body.plat-android .pill .chev { display: none; }
-  body.plat-android #player .sound-pill { bottom: 76px; }
+  /* Nothing overlays the video's bottom edge anymore — the pill sits just above it. */
+  body.plat-android #player .sound-pill { bottom: 18px; }
 }
 /* Landscape: immersive — the tab bar goes away while watching, the video owns
    the whole viewport, the HUD floats over it (safe-area aware, cutouts). */
