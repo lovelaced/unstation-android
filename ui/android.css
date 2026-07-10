@@ -261,6 +261,12 @@ body.plat-android .step .dot { width: 8px; height: 8px; }
   body.plat-android .pill .chev { display: none; }
   /* Nothing overlays the video's bottom edge anymore — the pill sits just above it. */
   body.plat-android #player .sound-pill { bottom: 18px; }
+  /* The Skip-to-live chip pops in and out with live lag. As a member of the in-flow
+     HUD row it reflowed every neighbor each time (the "UI moves around" complaint) —
+     float it ABOVE the row instead, over the video's bottom-right edge (the sound pill
+     owns bottom-center), so appearing/disappearing never changes the row's layout. */
+  body.plat-android .hud { position: relative; }
+  body.plat-android .hud #skipLiveBtn { position: absolute; bottom: calc(100% + 10px); right: 12px; z-index: 5; }
 }
 /* Landscape: immersive — the tab bar goes away while watching, the video owns
    the whole viewport, the HUD floats over it (safe-area aware, cutouts). */
