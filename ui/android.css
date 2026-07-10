@@ -484,3 +484,33 @@ body.plat-android #allowRetry .btn { min-height: 50px; }
    ====================================================================== */
 body.plat-android .scene[data-scene="ended"] .row { flex-direction: column; align-items: stretch; width: min(360px, 100%); }
 body.plat-android .scene[data-scene="ended"] .row .btn { min-height: 52px; font-size: 16px; }
+
+/* ======================================================================
+   12 · Battery/thermal: kill always-on compositing work on the phone.
+   The watch/publish screens ran an infinite background-position animation
+   (.video drift), two full-frame blend layers (grain overlay + scanlines),
+   and blur(26px) backdrop-filters on every glass control — the WebView
+   re-composites all of it at device refresh rate for as long as the screen
+   is on, which is real heat on a device that also decodes video (measured
+   alongside a thermal-status-4 warning on-device). The desktop keeps the
+   full aesthetic; the phone gets the same palette with static surfaces.
+   ====================================================================== */
+body.plat-android .frame .video { animation: none; }
+body.plat-android .frame .grain { display: none; }
+body.plat-android .frame::after { content: none; }
+body.plat-android .pill,
+body.plat-android .hud .hud-btn,
+body.plat-android .hud-leave,
+body.plat-android .frame .sound-pill,
+body.plat-android .frame .live-tag,
+body.plat-android .frame .fast-badge,
+body.plat-android .frame .catchup {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.plat-android .pill,
+body.plat-android .hud .hud-btn,
+body.plat-android .hud-leave,
+body.plat-android .frame .sound-pill {
+  background: rgba(14, 13, 18, .88);
+}

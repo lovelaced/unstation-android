@@ -37,12 +37,14 @@ android {
             }
         }
         getByName("release") {
-            isMinifyEnabled = true
-            proguardFiles(
-                *fileTree(".") { include("**/*.pro") }
-                    .plus(getDefaultProguardFile("proguard-android-optimize.txt"))
-                    .toList().toTypedArray()
-            )
+            // Local sideload builds sign with the debug keystore (replace with a real
+            // signing config before any store release). Debug APKs run UNOPTIMIZED Rust
+            // (10-50x the CPU on the mesh/crypto hot paths) — on-device that showed up
+            // as thermal-status-4 warnings, so release is the default test build now.
+            signingConfig = signingConfigs.getByName("debug")
+            // Minify off: proguard would strip/rename the hand-maintained JNI + Tauri
+            // WebView bridge (CameraBridge etc.) without a curated keep-rules pass.
+            isMinifyEnabled = false
         }
     }
     kotlinOptions {
