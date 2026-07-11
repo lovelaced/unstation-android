@@ -2,7 +2,7 @@
 
 # Unstation for Android
 
-*Watch and broadcast live video peer-to-peer from your phone — no servers, no CDN, no account.*
+*Watch and broadcast live video from your phone, straight to your friends, with no server and no account.*
 
 ![Platform](https://img.shields.io/badge/platform-Android%208%2B-3DDC84?style=flat-square&logo=android&logoColor=white)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square)
@@ -15,18 +15,18 @@
 
 ---
 
-Unstation for Android is the mobile companion to [Unstation](https://github.com/lovelaced/unstation-desktop). Point your camera at the game and go live — the video flows straight from your phone to your friends over a WebRTC mesh, with every segment cryptographically verified. Viewers find you through the Polkadot statement store; nothing is hosted and nothing can be taken down.
+Unstation for Android is the mobile companion to [Unstation](https://github.com/lovelaced/unstation-desktop). Point your camera at the action and go live: the video goes straight from your phone to your friends, with nothing hosted in the middle and no one who can take it down. Your app checks every stream automatically, so no one can slip you altered video.
 
 **New here?** The [help site](https://lovelaced.github.io/unstation-android/) covers watching, going live, and getting the best experience, in plain language.
 
 ## Features
 
-- **Go live from your camera** — hardware-encoded H.264 (Camera2 + MediaCodec) muxed on-device and served straight into the peer-to-peer mesh. Your broadcast survives switching apps: a foreground service keeps the camera rolling.
-- **Watch anywhere** — live streams play through hls.js with the same byte-for-byte verification as desktop, plus tap-for-sound, skip-to-live, and rotate-for-fullscreen.
-- **Invite links** — share `unstation://watch/<name>` (or a QR, or the Android share sheet); friends who open it land directly in your stream.
-- **Honest connection states** — "joining the mesh", "catching up", "can't reach anyone", and "the broadcast ended" are real states driven by the engine, never a fake spinner.
-- **Sign in once with your phone** — a same-device deep link to the Polkadot app grants this device a small, revocable network pass. Keys never leave the wallet.
-- **One codebase with desktop** — the Rust mesh engine and web UI are shared with `unstation-desktop`; this repo adds only the Android shell, camera plugin, and mobile UX layer.
+- **Go live from your camera.** Broadcast straight from your phone. Your stream keeps running even when you switch apps or lock the screen.
+- **Watch anywhere.** Open a link or type a name to watch, with tap-for-sound, skip-to-live, and rotate-for-fullscreen.
+- **Share with a link or a code.** Send an invite link or show a QR code, and friends who open it land straight in your stream.
+- **Clear about what's happening.** Connecting, catching up, and "the broadcast ended" are real messages, never an endless spinner.
+- **Sign in once.** A quick tap hands off to the Polkadot app to prove you're a real person. Your keys stay in that app and never move.
+- **The same streams as desktop.** Watch and broadcast alongside the [desktop app](https://github.com/lovelaced/unstation-desktop) for Mac, Windows, and Linux.
 
 <div align="center">
   <img src="assets/screenshots/watch-home.png" alt="Home screen: enter a stream name or open an invite link" width="270">
@@ -45,7 +45,7 @@ Unstation for Android is the mobile companion to [Unstation](https://github.com/
 
 Grab the latest APK from [Releases](https://github.com/lovelaced/unstation-android/releases) and install it (you may need to allow installs from unknown sources), or build it yourself below.
 
-To watch or broadcast you also need the Polkadot app on the same phone — Unstation signs you in with a one-tap handoff to it.
+To watch or broadcast you also need the Polkadot app on the same phone. Unstation signs you in with a one-tap handoff to it.
 
 ## Build from source
 

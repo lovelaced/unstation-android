@@ -74,7 +74,12 @@ def render(md_text):
     md_text = FRONT_MATTER.sub("", md_text)
     md_text = MD_LINK.sub(r"](\1.html\2)", md_text)     # between-page links
     md_text = md_text.replace("../assets/", "assets/")  # screenshots: repo path -> site path
-    md = markdown.Markdown(extensions=["tables", "fenced_code", "toc"])
+    # `permalink` adds a small "#" link on each heading so any section can be linked
+    # to directly; the CSS reveals it on hover.
+    md = markdown.Markdown(
+        extensions=["tables", "fenced_code", "toc"],
+        extension_configs={"toc": {"permalink": "#"}},
+    )
     html = md.convert(md_text)
     html = html.replace("<table>", '<div class="table-scroll"><table>').replace(
         "</table>", "</table></div>")

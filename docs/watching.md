@@ -15,13 +15,13 @@ they shared, because it carries the key that unlocks the video.
 
 ## While it connects
 
-Unstation is honest about what's happening. When you start watching, you'll see it work through
+Unstation tells you what's actually happening. When you start watching, you'll see it work through
 finding the broadcaster and connecting to other people watching. This can take a few seconds,
 especially on cell data.
 
 <p align="center"><img src="../assets/screenshots/joining-the-mesh.png" alt="The connecting screen showing live progress as it finds the broadcaster and connects to viewers" width="280"></p>
 
-You might see a few honest messages instead of a fake spinner:
+Instead of a spinner that tells you nothing, you might see one of these:
 
 - **Catching up.** It has the stream and is buffering a moment of video. It'll start shortly.
 - **Can't reach anyone yet.** Nobody carrying this stream is reachable right now. It keeps trying.
