@@ -498,6 +498,9 @@ body.plat-android .scene[data-scene="ended"] .row .btn { min-height: 52px; font-
 body.plat-android .frame .video { animation: none; }
 body.plat-android .frame .grain { display: none; }
 body.plat-android .frame::after { content: none; }
+/* The ambient background glows composite two 70px-blur layers continuously on the
+   idle entry/settings screens — static washes on the phone, same palette. */
+body.plat-android .ambient .glow { animation: none; }
 body.plat-android .pill,
 body.plat-android .hud .hud-btn,
 body.plat-android .hud-leave,

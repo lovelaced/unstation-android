@@ -17,6 +17,8 @@
 
 Unstation for Android is the mobile companion to [Unstation](https://github.com/lovelaced/unstation-desktop). Point your camera at the game and go live — the video flows straight from your phone to your friends over a WebRTC mesh, with every segment cryptographically verified. Viewers find you through the Polkadot statement store; nothing is hosted and nothing can be taken down.
 
+**New here?** The [help site](https://lovelaced.github.io/unstation-android/) covers watching, going live, and getting the best experience, in plain language.
+
 ## Features
 
 - **Go live from your camera** — hardware-encoded H.264 (Camera2 + MediaCodec) muxed on-device and served straight into the peer-to-peer mesh. Your broadcast survives switching apps: a foreground service keeps the camera rolling.

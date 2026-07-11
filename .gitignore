@@ -12,3 +12,6 @@ src-tauri/target/
 
 # NOTE: src-tauri/gen/android build outputs (.gradle, app/build, local.properties,
 # keystores) are ignored by the tauri-generated .gitignore files inside gen/android.
+
+# Docs site build output (published by the Pages workflow; never committed)
+docs/_site/
